@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mon site</title>
+
+<style>
+  /* ===== 1. COULEURS : change ces valeurs pour changer le look ===== */
+  :root {
+    --fond: #0f172a;
+    --carte: #1e293b;
+    --texte: #f1f5f9;
+    --accent: #38bdf8;
+  }
+
+  /* ===== 2. STYLE GENERAL ===== */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: var(--fond);
+    color: var(--texte);
+    line-height: 1.5;
+  }
+  header { padding: 40px 20px 20px; text-align: center; }
+  header h1 { margin: 0; color: var(--accent); }
+  nav { text-align: center; padding: 10px; }
+  nav a { color: var(--texte); margin: 0 8px; text-decoration: none; }
+  nav a:hover { color: var(--accent); }
+  main { max-width: 700px; margin: auto; padding: 0 16px 40px; }
+  section { background: var(--carte); border-radius: 14px; padding: 18px; margin-top: 18px; }
+  h2 { margin-top: 0; color: var(--accent); }
+  h3 { color: var(--accent); margin-bottom: 4px; }
+
+  button {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 4px 4px 4px 0;
+  }
+  input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+  }
+
+  /* ===== 3. STYLE DU CHAT ===== */
+  #messages, #chatMessages { height: 220px; overflow-y: auto; background: var(--fond); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+  .moi { text-align: right; color: var(--accent); }
+  .ia { text-align: left; }
+
+  /* ===== 3b. HORLOGE : rectangle dans la carte Accueil ===== */
+  #accueil { position: relative; }
+  #horloge {
+    position: absolute;
+    top: 18px;
+    right: 18px;
+    background: var(--fond);
+    border: 2px solid var(--accent);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--accent);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-weight: bold;
+  }
+  #horloge .hm { font-size: 20px; }
+  #horloge .sec { font-size: 12px; color: var(--texte); }
+
+  /* ===== 3c. STYLE DES AMIS ===== */
+  .ligne { display: flex; gap: 6px; align-items: center; }
+  .ligne input { flex: 1; width: auto; }
+  .rang { display: flex; justify-content: space-between; align-items: center; background: var(--fond); padding: 6px 10px; border-radius: 8px; margin: 6px 0; }
+  .rang button { margin: 0; padding: 6px 12px; font-size: 14px; }
+</style>
+
+<!-- Firebase (base de donnees en ligne pour les amis) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+
+<body>
+
+<!-- ===== 4. EN-TETE : change le titre et la phrase ===== -->
+<header>
+  <h1 id="titre">Mon premier site</h1>
+  <p>Je programme mon propre site depuis mon telephone !</p>
+</header>
+
+<nav>
+  <a href="#accueil">Accueil</a>
+  <a href="#projets">Projets</a>
+  <a href="#chat">XIL.AI2.0</a>
+  <a href="#amis">Amis</a>
+  <a href="#contact">Contact</a>
+</nav>
+
+<main>
+
+  <!-- ===== 5. SECTION ACCUEIL ===== -->
+  <section id="accueil">
+    <h2>Accueil</h2>
+    <div id="horloge"><span class="hm"></span><span class="sec"></span></div>
+    <p id="bienvenue">Bienvenue !</p>
+    <button onclick="changerNom()">Dire mon prenom</button>
+    <button onclick="changerCouleur()">Changer la couleur</button>
+    <button onclick="compter()">Cliques : <span id="compteur">0</span></button>
+  </section>
+
+  <!-- ===== 6. SECTION PROJETS : copie une carte pour en ajouter ===== -->
+  <section id="projets">
+    <h2>Mes projets</h2>
+    <p><b>XIL.AI2.0</b> : une IA de discussion en Pascal.</p>
+    <p><b>Mon site</b> : cette page que j'ecris moi-meme.</p>
+    <!-- Ajoute ton projet ici : <p><b>Nom</b> : description.</p> -->
+  </section>
+
+  <!-- ===== 7. SECTION CHAT : mini XIL.AI2.0 en JavaScript ===== -->
+  <section id="chat">
+    <h2>Discuter avec XIL.AI2.0</h2>
+    <div id="messages"></div>
+    <input id="saisie" placeholder="Ecris un message et appuie sur Entree">
+    <button onclick="envoyer()">Envoyer</button>
+  </section>
+
+  <!-- ===== 7b. SECTION AMIS ===== -->
+  <section id="amis">
+    <h2>Amis</h2>
+    <p id="amisInfo"></p>
+
+    <div id="amisLogin">
+      <input id="pseudo" placeholder="Choisis ton pseudo (lettres et chiffres)">
+      <button onclick="connexion()">Valider</button>
+    </div>
+
+    <div id="amisApp" style="display:none">
+      <p>Connecte : <b id="monPseudo"></b> <button onclick="deconnexion()">Quitter</button></p>
+
+      <div class="ligne">
+        <input id="recherche" placeholder="Chercher un pseudo">
+        <button onclick="rechercher()">&#128269;</button>
+      </div>
+      <div id="resultats"></div>
+
+      <h3>Demandes recues</h3>
+      <div id="demandes"></div>
+
+      <h3>Mes amis</h3>
+      <div id="listeAmis"></div>
+
+      <div id="chatAmi" style="display:none">
+        <h3>Discussion avec <span id="nomAmi"></span></h3>
+        <div id="chatMessages"></div>
+        <input id="chatSaisie" placeholder="Ecris a ton ami">
+        <button onclick="envoyerAmi()">Envoyer</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 8. SECTION CONTACT ===== -->
+  <section id="contact">
+    <h2>Contact</h2>
+    <p>Ecris ton email ou ton numero ici.</p>
+  </section>
+
+</main>
+
+<script>
+  /* ===== 9. PRENOM (retenu dans le navigateur) ===== */
+  function chargerNom() {
+    let nom = "";
+    try { nom = localStorage.getItem("prenom") || ""; } catch (e) {}
+    document.getElementById("bienvenue").textContent =
+      nom ? "Bienvenue " + nom + " !" : "Bienvenue !";
+  }
+
+  function changerNom() {
+    const nom = prompt("Comment t'appelles-tu ?");
+    if (nom) {
+      try { localStorage.setItem("prenom", nom); } catch (e) {}
+      chargerNom();
+    }
+  }
+
+  /* ===== 10. COULEUR D'ACCENT ===== */
+  const couleurs = ["#38bdf8", "#f472b6", "#4ade80", "#facc15", "#fb923c"];
+  let numCouleur = 0;
+
+  function changerCouleur() {
+    numCouleur = (numCouleur + 1) % couleurs.length;
+    document.documentElement.style.setProperty("--accent", couleurs[numCouleur]);
+  }
+
+  /* ===== 11. COMPTEUR ===== */
+  let total = 0;
+  function compter() {
+    total = total + 1;
+    document.getElementById("compteur").textContent = total;
+  }
+
+  /* ===== 12. XIL.AI2.0 : le cerveau ===== */
+  /** @param {string} t */
+  function nettoyer(t) {
+    return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\u2019`\u00b4]/g, "'").trim();
+  }
+
+  /* Ajoute tes propres lignes ici : mots a reconnaitre + reponse
+     (mots sans accents, en minuscules). "sauf" = mots qui annulent la reponse. */
+  const reponses = [
+    { mots: ["salut", "bonjour", "coucou", "hello", "bonsoir", "hey"], rep: "Salut ! Content de te voir." },
+    { mots: ["ca va", "cava", "comment vas", "comment tu vas", "tu vas bien", "la forme"], sauf: ["bien", "mal", "pas"], rep: "Je vais tres bien, merci ! Et toi ?" },
+    { mots: ["je vais bien", "ca va bien", "tres bien", "super bien", "je vais tres bien"], rep: "Content de l'apprendre ! Qu'est-ce que tu veux faire ?" },
+    { mots: ["je vais mal", "ca va mal", "ca va pas", "pas bien", "je vais pas bien"], rep: "Oh, courage... Tu veux m'en parler ?" },
+    { mots: ["appelles", "ton nom", "qui es tu", "tu es qui", "qui est tu"], rep: "Je m'appelle XIL.AI2.0, ecrit en JavaScript." },
+    { mots: ["ton age", "quel age", "tu as quel age"], rep: "Je suis tout jeune, je viens d'etre programme !" },
+    { mots: ["tu fais quoi", "que fais tu", "tu fais koi"], rep: "Je discute avec toi, c'est mon travail prefere." },
+    { mots: ["qui t'a cree", "qui ta cree", "ton createur", "qui t'a fait", "qui ta fait"], rep: "Un createur qui programme depuis son telephone !" },
+    { mots: ["tu parles", "quelle langue"], rep: "Je parle francais." },
+    { mots: ["merci"], rep: "Avec plaisir !" },
+    { mots: ["blague"], rep: "Pourquoi les programmeurs aiment la nature ? Plein de bugs !" },
+    { mots: ["triste", "fatigue", "deprime"], rep: "Courage, ca va aller. Je t'ecoute." },
+    { mots: ["content", "super"], rep: "Genial, ca me fait plaisir !" },
+    { mots: ["capitale de la france"], rep: "La capitale de la France est Paris." },
+    { mots: ["capitale du maroc"], rep: "La capitale du Maroc est Rabat." },
+    { mots: ["capitale de l'algerie"], rep: "La capitale de l'Algerie est Alger." },
+    { mots: ["capitale de la tunisie"], rep: "La capitale de la Tunisie est Tunis." },
+    { mots: ["combien de continents"], rep: "Il y a 7 continents." },
+    { mots: ["plus grand pays"], rep: "Le plus grand pays du monde est la Russie." },
+    { mots: ["plus haute montagne", "everest"], rep: "L'Everest, avec environ 8849 metres." },
+    { mots: ["ou suis je", "ou je suis", "ma position", "ma localisation", "ou j'habite", "quelle ville"], rep: "__LIEU__" },
+    { mots: ["temperature", "degre", "meteo", "il fait chaud", "il fait froid", "combien fait il"], rep: "__TEMP__" },
+    { mots: ["date", "quel jour", "on est quel jour"], rep: "__DATE__" },
+    { mots: ["heure"], rep: "__HEURE__" },
+    { mots: ["javascript"], rep: "JavaScript est le langage qui fait vivre les sites web, comme le mien !" },
+    { mots: ["pascal"], rep: "Pascal est un langage de programmation, parfait pour apprendre." },
+    { mots: ["python"], rep: "Python est un langage simple, tres utilise pour l'IA." },
+    { mots: ["foot", "football"], rep: "Le foot, c'est la vie ! Tu supportes quelle equipe ?" },
+    { mots: ["musique", "chanson"], rep: "J'adore la musique ! Tu ecoutes quoi en ce moment ?" },
+    { mots: ["jeu", "jouer"], rep: "On peut jouer a un calcul : ecris 7 * 8 !" },
+    { mots: ["conseil"], rep: "Un conseil : programme un peu chaque jour, c'est comme ca qu'on progresse." },
+    { mots: ["je t'aime", "tu es cool", "tu es genial"], rep: "Merci, toi aussi tu es super !" },
+    { mots: ["tu es nul", "tu es bete"], rep: "Aie ! Je vais apprendre pour m'ameliorer." },
+    { mots: ["au revoir", "bye", "a bientot", "a plus"], rep: "A bientot !" }
+  ];
+
+  /** @param {string} texte */
+  function repondre(texte) {
+    const t = nettoyer(texte);
+
+    /* Calcul : accepte seulement chiffres et + - * / ( ) */
+    if (/^[0-9+\-*/(). ]+$/.test(t) && /[+\-*/]/.test(t)) {
+      try {
+        const r = Function('"use strict"; return (' + t + ")")();
+        return "Le resultat est " + r;
+      } catch (e) {}
+    }
+
+    /* Presentation : "je m'appelle Lyam" */
+    const nomTrouve = t.match(/je m'?appelle ([a-z\-]+)/);
+    if (nomTrouve) {
+      const prenom = nomTrouve[1].charAt(0).toUpperCase() + nomTrouve[1].slice(1);
+      return "Enchante " + prenom + " ! Comment ca va ?";
+    }
+
+    /* Cherche TOUTES les reponses qui correspondent, dans l'ordre du message */
+    /** @type {{pos: number, rep: string}[]} */
+    const trouvees = [];
+    for (const r of reponses) {
+      if (r.sauf && r.sauf.some(function (s) { return t.includes(s); })) continue;
+      let pos = -1;
+      for (const m of r.mots) {
+        const i = t.indexOf(m);
+        if (i !== -1 && (pos === -1 || i < pos)) pos = i;
+      }
+      if (pos !== -1) {
+        let rep = r.rep;
+        if (rep === "__DATE__") {
+          rep = "Nous sommes le " + new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" }) + ".";
+        } else if (rep === "__HEURE__") {
+          rep = "Il est " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) + ".";
+        } else if (rep === "__LIEU__") {
+          rep = lieu ? "Tu es a " + lieu + "." : "Je ne connais pas encore ta position. Autorise la localisation dans Chrome.";
+        } else if (rep === "__TEMP__") {
+          rep = temperature !== null
+            ? "Il fait " + temperature + " degres" + (lieu ? " a " + lieu : "") + "."
+            : "Je n'ai pas encore la temperature. Autorise la localisation dans Chrome.";
+        }
+        trouvees.push({ pos: pos, rep: rep });
+      }
+    }
+
+    if (trouvees.length === 0) {
+      const inconnu = ["Je ne comprends pas, tu peux reformuler ?", "Hmm, je ne connais pas encore ca.", "Apprends-moi ! Ajoute cette reponse dans mon code."];
+      return inconnu[Math.floor(Math.random() * inconnu.length)];
+    }
+    trouvees.sort(function (a, b) { return a.pos - b.pos; });
+    return trouvees.map(function (x) { return x.rep; }).join(" ");
+  }
+
+  /* ===== 13. XIL.AI2.0 : affichage du chat ===== */
+  /**
+   * @param {string} qui
+   * @param {string} texte
+   */
+  function afficher(qui, texte) {
+    const zone = document.getElementById("messages");
+    const p = document.createElement("p");
+    p.className = qui;
+    p.textContent = (qui === "moi" ? "Toi : " : "XIL.AI2.0 : ") + texte;
+    zone.appendChild(p);
+    zone.scrollTop = zone.scrollHeight;
+  }
+
+  function envoyer() {
+    const champ = document.getElementById("saisie");
+    const texte = champ.value.trim();
+    if (!texte) return;
+    afficher("moi", texte);
+    afficher("ia", repondre(texte));
+    champ.value = "";
+  }
+
+  document.getElementById("saisie").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") envoyer();
+  });
+
+  /* ===== 13b. HORLOGE ===== */
+  function majHorloge() {
+    const d = new Date();
+    const hm = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    const sec = String(d.getSeconds()).padStart(2, "0");
+    document.querySelector("#horloge .hm").textContent = hm;
+    document.querySelector("#horloge .sec").textContent = sec + " s";
+  }
+
+  /* ===== 13c. LOCALISATION + TEMPERATURE ===== */
+  let lieu = "";
+  /** @type {number | null} */
+  let temperature = null;
+
+  function chargerMeteo() {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+
+      fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=" + lat + "&longitude=" + lon + "&localityLanguage=fr")
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          lieu = (d.city || d.locality || "") + (d.countryName ? ", " + d.countryName : "");
+        })
+        .catch(function () {});
+
+      fetch("https://api.open-meteo.com/v1/forecast?latitude=" + lat + "&longitude=" + lon + "&current=temperature_2m")
+        .then(function (r) { return r.json(); })
+        .then(function (d) { temperature = d.current.temperature_2m; })
+        .catch(function () {});
+    }, function () {}, { timeout: 10000 });
+  }
+
+  /* ===== 13d. AMIS (Firebase) ===== */
+  /* Colle ici les valeurs de ton projet Firebase */
+  const firebaseConfig = {
+    apiKey: "COLLE_ICI",
+    authDomain: "COLLE_ICI",
+    databaseURL: "COLLE_ICI",
+    projectId: "COLLE_ICI"
+  };
+
+  const fb = /** @type {any} */ (window).firebase;
+  /** @type {any} */
+  let db = null;
+  let moi = "";
+  let amiActuel = "";
+  /** @type {any} */
+  let chatRef = null;
+  /** @type {any[]} */
+  let ecouteurs = [];
+
+  /** @param {string} s */
+  function pseudoPropre(s) {
+    return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9_-]/g, "").slice(0, 20);
+  }
+
+  /**
+   * @param {HTMLElement} zone
+   * @param {string} nom
+   * @param {string} bouton
+   * @param {() => void} action
+   */
+  function ligne(zone, nom, bouton, action) {
+    const div = document.createElement("div");
+    div.className = "rang";
+    const span = document.createElement("span");
+    span.textContent = nom;
+    const b = document.createElement("button");
+    b.textContent = bouton;
+    b.onclick = action;
+    div.appendChild(span);
+    div.appendChild(b);
+    zone.appendChild(div);
+  }
+
+  function initAmis() {
+    const info = document.getElementById("amisInfo");
+    if (!fb || firebaseConfig.apiKey === "COLLE_ICI") {
+      info.textContent = "Amis desactive : internet ou config Firebase manquants (voir firebaseConfig dans le code).";
+      document.getElementById("amisLogin").style.display = "none";
+      return;
+    }
+    try {
+      fb.initializeApp(firebaseConfig);
+      db = fb.database();
+    } catch (e) {
+      info.textContent = "Erreur Firebase : verifie ta config.";
+      return;
+    }
+    info.textContent = "Choisis un pseudo pour retrouver tes amis.";
+    let sauve = "";
+    try { sauve = localStorage.getItem("pseudoAmi") || ""; } catch (e) {}
+    if (sauve) ouvrirSession(sauve);
+  }
+
+  function connexion() {
+    const p = pseudoPropre(document.getElementById("pseudo").value);
+    if (p.length < 3) {
+      alert("Pseudo : 3 caracteres minimum (lettres, chiffres, _ ou -).");
+      return;
+    }
+    ouvrirSession(p);
+  }
+
+  /** @param {string} p */
+  function ouvrirSession(p) {
+    moi = p;
+    try { localStorage.setItem("pseudoAmi", p); } catch (e) {}
+    db.ref("users/" + p).update({ vu: Date.now() });
+    document.getElementById("amisLogin").style.display = "none";
+    document.getElementById("amisApp").style.display = "block";
+    document.getElementById("amisInfo").textContent = "";
+    document.getElementById("monPseudo").textContent = p;
+    ecouterDemandes();
+    ecouterAmis();
+  }
+
+  function deconnexion() {
+    ecouteurs.forEach(function (r) { r.off(); });
+    ecouteurs = [];
+    if (chatRef) { chatRef.off(); chatRef = null; }
+    amiActuel = "";
+    moi = "";
+    try { localStorage.removeItem("pseudoAmi"); } catch (e) {}
+    document.getElementById("amisApp").style.display = "none";
+    document.getElementById("amisLogin").style.display = "block";
+    document.getElementById("chatAmi").style.display = "none";
+    document.getElementById("amisInfo").textContent = "Choisis un pseudo pour retrouver tes amis.";
+  }
+
+  function rechercher() {
+    const q = pseudoPropre(document.getElementById("recherche").value);
+    const zone = document.getElementById("resultats");
+    zone.textContent = "";
+    if (!q) return;
+    db.ref("users").orderByKey().startAt(q).endAt(q + "\uf8ff").limitToFirst(10).once("value").then(function (snap) {
+      let n = 0;
+      snap.forEach(function (c) {
+        if (c.key === moi) return;
+        n++;
+        const nom = c.key;
+        ligne(zone, nom, "Ajouter", function () { ajouterAmi(nom); });
+      });
+      if (n === 0) zone.textContent = "Aucun resultat.";
+    });
+  }
+
+  /** @param {string} ami */
+  function ajouterAmi(ami) {
+    db.ref("friends/" + moi + "/" + ami).once("value").then(function (s) {
+      if (s.exists()) { alert("Vous etes deja amis !"); return; }
+      db.ref("requests/" + ami + "/" + moi).set(true).then(function () {
+        alert("Demande envoyee a " + ami + " !");
+      });
+    });
+  }
+
+  function ecouterDemandes() {
+    const ref = db.ref("requests/" + moi);
+    ecouteurs.push(ref);
+    ref.on("value", function (snap) {
+      const zone = document.getElementById("demandes");
+      zone.textContent = "";
+      if (!snap.exists()) { zone.textContent = "Aucune demande."; return; }
+      snap.forEach(function (c) {
+        const ami = c.key;
+        ligne(zone, ami, "Accepter", function () { accepter(ami); });
+      });
+    });
+  }
+
+  /** @param {string} ami */
+  function accepter(ami) {
+    /** @type {Object<string, any>} */
+    const maj = {};
+    maj["friends/" + moi + "/" + ami] = true;
+    maj["friends/" + ami + "/" + moi] = true;
+    maj["requests/" + moi + "/" + ami] = null;
+    db.ref().update(maj);
+  }
+
+  function ecouterAmis() {
+    const ref = db.ref("friends/" + moi);
+    ecouteurs.push(ref);
+    ref.on("value", function (snap) {
+      const zone = document.getElementById("listeAmis");
+      zone.textContent = "";
+      if (!snap.exists()) { zone.textContent = "Pas encore d'amis. Cherche un pseudo avec la loupe !"; return; }
+      snap.forEach(function (c) {
+        const ami = c.key;
+        ligne(zone, ami, "Discuter", function () { ouvrirChat(ami); });
+      });
+    });
+  }
+
+  /** @param {string} ami */
+  function ouvrirChat(ami) {
+    if (chatRef) chatRef.off();
+    amiActuel = ami;
+    const id = [moi, ami].sort().join("|");
+    chatRef = db.ref("chats/" + id).limitToLast(50);
+    document.getElementById("chatAmi").style.display = "block";
+    document.getElementById("nomAmi").textContent = ami;
+    const zone = document.getElementById("chatMessages");
+    zone.textContent = "";
+    chatRef.on("child_added", function (snap) {
+      const m = snap.val();
+      const p = document.createElement("p");
+      p.className = m.de === moi ? "moi" : "ia";
+      p.textContent = m.de + " : " + m.texte;
+      zone.appendChild(p);
+      zone.scrollTop = zone.scrollHeight;
+    });
+  }
+
+  function envoyerAmi() {
+    const champ = document.getElementById("chatSaisie");
+    const texte = champ.value.trim().slice(0, 300);
+    if (!texte || !amiActuel) return;
+    const id = [moi, amiActuel].sort().join("|");
+    db.ref("chats/" + id).push({ de: moi, texte: texte, t: Date.now() });
+    champ.value = "";
+  }
+
+  document.getElementById("recherche").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") rechercher();
+  });
+  document.getElementById("chatSaisie").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") envoyerAmi();
+  });
+
+  /* ===== 14. DEMARRAGE ===== */
+  chargerNom();
+  majHorloge();
+  setInterval(majHorloge, 1000);
+  chargerMeteo();
+  initAmis();
+  afficher("ia", "Bonjour ! Dis-moi ca va, demande-moi mon nom, ou fais un calcul comme 12 + 5.");
+</script>
+
+</body>
+</html>
